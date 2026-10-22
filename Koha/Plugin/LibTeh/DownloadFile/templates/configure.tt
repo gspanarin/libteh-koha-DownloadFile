@@ -1,0 +1,114 @@
+[% INCLUDE 'doc-head-open.inc' %]
+<title>Koha Plugin :: Налаштування</title>
+[% INCLUDE 'doc-head-close.inc' %]
+
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+
+
+<div class="main container-fluid">
+    <div id="breadcrumbs">
+        <a href="/cgi-bin/koha/mainpage.pl">Домашня</a>&rsaquo; 
+        <a href="/cgi-bin/koha/admin/admin-home.pl">Керування</a>&rsaquo; 
+        <a href="/cgi-bin/koha/plugins/plugins-home.pl">Додатки</a>&rsaquo; 
+        
+        &rsaquo; Налаштування плагіну DownloadFile
+    </div>
+
+    <h1>DownloadFile — налаштування</h1>
+
+
+    <div class="alert alert-warning">
+        <h2>Налаштування Apache для OPAC</h2>
+        <p>
+            Для роботи завантаження файлів з OPAC необхідно додати до
+            <strong>OPAC VirtualHost</strong> Apache окремий ScriptAlias і дозвіл
+            на виконання CGI-файла плагіна. Замініть <code>[instance]</code>
+            на назву вашого інстансу Koha.
+        </p>
+        <pre>ScriptAlias /download-file.pl "/var/lib/koha/[instance]/plugins/Koha/Plugin/Libteh/DownloadFile/opac-download.pl"
+
+&lt;Directory "/var/lib/koha/[instance]/plugins/Koha/Plugin/Libteh/DownloadFile"&gt;
+    Options +ExecCGI
+    Require all granted
+&lt;/Directory&gt;</pre>
+        <p>Після зміни конфігурації перевірте її та перезапустіть Apache:</p>
+        <pre>sudo apache2ctl configtest
+sudo systemctl restart apache2</pre>
+        <p>
+            Файл <code>opac-download.pl</code> входить до складу плагіна.
+            Під час встановлення та оновлення плагін також намагається встановити
+            для нього права <code>0755</code>.
+        </p>
+    </div>
+
+    [% IF saved %]
+        <div class="alert alert-success">Налаштування збережено.</div>
+    [% END %]
+
+    <form action="/cgi-bin/koha/plugins/run.pl" method="post" enctype="multipart/form-data">
+        [% INCLUDE 'csrf-token.inc' %]
+        <input type="hidden" name="class" value="[% PLUGIN_CLASS %]" />
+        <input type="hidden" name="method" value="configure" />
+        <input type="hidden" name="op" value="cud-save" />
+        
+        
+        <h2>Причини відмови у доступі</h2>
+
+        <p>
+            Цей текст показується користувачу, коли відповідне право в
+            <code>856$l</code> не дозволяє завантаження.
+        </p>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Право</th>
+                    <th>Опис</th>
+                    <th>Причина відмови</th>
+                </tr>
+            </thead>
+            <tbody>
+            [% FOREACH right IN ['admin', 'authorized_user', 'local', 'open_acces', 'staff'] %]
+                <tr>
+                    <td><code>[% right | html %]</code></td>
+                    <td>
+                        [% IF right == 'admin' %]Адміністратор системи
+                        [% ELSIF right == 'authorized_user' %]Зареєстрований читач
+                        [% ELSIF right == 'local' %]Локальний доступ у мережі бібліотеки
+                        [% ELSIF right == 'open_acces' %]Відкритий доступ
+                        [% ELSIF right == 'staff' %]Співробітник бібліотеки
+                        [% END %]
+                    </td>
+                    <td>
+                        <textarea name="denial_[% right | html %]" rows="3" cols="60">[% denial_messages.$right | html %]</textarea>
+                    </td>
+                </tr>
+            [% END %]
+            </tbody>
+        </table>
+
+        <h2>Локальні мережі</h2>
+
+        <p>
+            Один запис на рядок. Підтримуються IPv4/IPv6 CIDR,
+            окремі IP та діапазони.
+        </p>
+
+        <textarea name="local_networks" rows="8" cols="80">[% local_networks | html %]</textarea>
+
+        <p class="help-block">
+            Приклади:<br>
+            <code>192.168.1.0/24</code><br>
+            <code>10.0.0.0/8</code><br>
+            <code>192.168.10.10-192.168.10.100</code>
+        </p>
+
+        <button type="submit" class="btn btn-primary">
+            Зберегти
+        </button>
+    </form>
+</div>
+
+[% INCLUDE 'intranet-bottom.inc' %]
