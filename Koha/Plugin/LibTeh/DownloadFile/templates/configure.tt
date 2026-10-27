@@ -27,9 +27,9 @@
             на виконання CGI-файла плагіна. Замініть <code>[instance]</code>
             на назву вашого інстансу Koha.
         </p>
-        <pre>ScriptAlias /download-file.pl "/var/lib/koha/[instance]/plugins/Koha/Plugin/Libteh/DownloadFile/opac-download.pl"
+        <pre>ScriptAlias /download-file.pl "/var/lib/koha/[instance]/plugins/Koha/Plugin/LibTeh/DownloadFile/opac-download.pl"
 
-&lt;Directory "/var/lib/koha/[instance]/plugins/Koha/Plugin/Libteh/DownloadFile"&gt;
+&lt;Directory "/var/lib/koha/[instance]/plugins/Koha/Plugin/LibTeh/DownloadFile"&gt;
     Options +ExecCGI
     Require all granted
 &lt;/Directory&gt;</pre>
@@ -89,6 +89,26 @@ sudo systemctl restart apache2</pre>
             </tbody>
         </table>
 
+        <h2>Права за замовчуванням</h2>
+        <p>Це право автоматично встановлюється у MARC 856$l під час вибору файла.</p>
+        <div class="form-group" role="radiogroup" aria-label="Права за замовчуванням">
+        [% FOREACH right IN ['admin', 'authorized_user', 'local', 'open_acces', 'staff'] %]
+            <label class="radio-inline" style="margin-right: 16px;">
+                <input type="radio" name="default_rights" value="[% right | html %]" [% IF default_rights == right %]checked="checked"[% END %] />
+                [% IF right == 'admin' %]Адміністратор
+                [% ELSIF right == 'authorized_user' %]Авторизований користувач
+                [% ELSIF right == 'local' %]Локальна мережа
+                [% ELSIF right == 'open_acces' %]Відкритий доступ
+                [% ELSIF right == 'staff' %]Співробітник[% END %]
+                (<code>[% right | html %]</code>)
+            </label>
+        [% END %]
+        </div>
+
+        <h2>LibTeh Uploader — дозволені формати</h2>
+        [% IF extensions_error %]<div class="alert alert-danger">Некоректний перелік розширень.</div>[% END %]
+        <p>Розширення через кому (без крапок). Налаштування збережене для наступного етапу інтеграції завантаження.</p>
+        <input type="text" class="form-control" name="allowed_extensions" value="[% allowed_extensions | html %]" />
         <h2>Локальні мережі</h2>
 
         <p>

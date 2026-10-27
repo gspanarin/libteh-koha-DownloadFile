@@ -1,0 +1,158 @@
+[% INCLUDE 'doc-head-open.inc' %]
+<title>LibTeh Uploader — файли Koha</title>
+[% INCLUDE 'doc-head-close.inc' %]
+<div class="container-fluid">
+<h1>LibTeh Uploader</h1>
+<div class="alert alert-info">Виберіть файл для додавання посилання в MARC 856. Завантаження і видалення файлів ще не активовані.</div>
+<form method="get" action="/cgi-bin/koha/plugins/run.pl">
+<input type="hidden" name="class" value="Koha::Plugin::LibTeh::DownloadFile" />
+<input type="hidden" name="method" value="launcher" />
+<input type="hidden" name="index" value="[% index | html %]" />
+<input type="hidden" name="biblionumber" value="[% biblionumber | html %]" />
+<label for="search">Пошук за назвою</label>
+<input id="search" name="search" value="[% search | html %]" />
+<button type="submit" class="btn btn-primary">Шукати</button>
+</form>
+<p>Знайдено: [% total | html %]</p>
+<table class="table table-striped"><thead><tr><th>Назва</th><th>Каталог</th><th>Hash</th><th>Дії</th></tr></thead><tbody>
+[% FOREACH file IN files %]
+<tr><td>[% file.filename | html %]</td><td>[% file.dir | html %]</td><td><code>[% file.hashvalue | html %]</code></td><td><button type="button" class="btn btn-default preview-link" data-hash="[% file.hashvalue | html %]">Переглянути</button> <button type="button" class="btn btn-primary select-file" data-hash="[% file.hashvalue | html %]">Вибрати</button></td></tr>
+[% END %]
+</tbody></table>
+[% IF previous_page %]<a href="?class=Koha::Plugin::LibTeh::DownloadFile&amp;method=launcher&amp;page=[% previous_page %]&amp;search=[% search | uri %]&amp;biblionumber=[% biblionumber | uri %]&amp;index=[% index | uri %]">Попередня</a>[% END %]
+[% IF next_page %]<a href="?class=Koha::Plugin::LibTeh::DownloadFile&amp;method=launcher&amp;page=[% next_page %]&amp;search=[% search | uri %]&amp;biblionumber=[% biblionumber | uri %]&amp;index=[% index | uri %]">Наступна</a>[% END %]
+<div id="link-preview" class="well" hidden><strong>856$u:</strong> <code id="preview-url"></code><p><strong>856$l:</strong> <code id="preview-right"></code></p><p>Це попередній перегляд, значення ще не записані до MARC.</p></div>
+</div>
+<div id="libteh-manager-data"
+     data-opac="[% opac_url | html %]"
+     data-index="[% index | html %]"
+     data-biblionumber="[% biblionumber | html %]"
+     data-rights="[% selected_rights | html %]" hidden></div>
+<script>
+(function () {
+  'use strict';
+  var managerData = document.getElementById('libteh-manager-data');
+  var opac = managerData.dataset.opac;
+  var targetId = managerData.dataset.index;
+  var biblio = managerData.dataset.biblionumber;
+  var rights = managerData.dataset.rights;
+  var validOpac = /^https?:\/\/[^\s/]+/i.test(opac);
+  document.querySelectorAll('.preview-link').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (!biblio) { alert('Спочатку збережіть бібліографічний запис, щоб отримати biblionumber.'); return; }
+      if (!validOpac) { alert('У Koha потрібно налаштувати OPACBaseURL.'); return; }
+      var hash = button.getAttribute('data-hash');
+      if (!/^(?:[0-9a-f]{32}|[0-9a-f]{40})$/i.test(hash)) { alert('Некоректний hashvalue'); return; }
+      document.getElementById('preview-url').textContent = opac + '/download-file.pl?id=' + encodeURIComponent(hash) + '&biblionumber=' + encodeURIComponent(biblio);
+      document.getElementById('preview-right').textContent = rights;
+      document.getElementById('link-preview').hidden = false;
+    });
+  });
+
+  
+
+function findMatching856l(doc, targetId) {
+    // Знаходимо поточне підполе 856$u.
+    const u = doc.getElementById(targetId);
+    if (!u || !/^tag_856_subfield_u_/.test(u.id)) {
+        return null;
+    }
+    // Знаходимо батьківський блок саме цього повторення 856.
+    const parentTag = u.closest(
+        'li.tag.sortable_tag[id^="tag_856_"]'
+    );
+    if (!parentTag) {
+        return null;
+    }
+    // Шукаємо 856$l виключно всередині знайденого блоку.
+    const matches = Array.from(
+        parentTag.querySelectorAll(
+            'select[id^="tag_856_subfield_l_"], ' +
+            'input[id^="tag_856_subfield_l_"]'
+        )
+    );
+    // Не допускаємо неоднозначного вибору.
+    return matches.length === 1 ? matches[0] : null;
+}
+
+
+document.querySelectorAll('.select-file').forEach(function(button) {
+    button.addEventListener('click', function() {
+
+        if (!biblio) {
+            alert('Спочатку збережіть бібліографічний запис, щоб отримати biblionumber.');
+            return;
+        }
+
+        if (!validOpac) {
+            alert('У Koha потрібно налаштувати OPACBaseURL.');
+            return;
+        }
+
+        const hash = button.getAttribute('data-hash') || '';
+
+        if (!/^(?:[0-9a-f]{32}|[0-9a-f]{40})$/i.test(hash)) {
+            alert('Некоректний hashvalue');
+            return;
+        }
+
+        if (!window.opener || window.opener.closed || !targetId) {
+            alert('Вікно не пов’язане з MARC-редактором. Значення не змінено.');
+            return;
+        }
+
+        let doc;
+
+        try {
+            doc = window.opener.document;
+        } catch (e) {
+            alert('Немає доступу до вікна MARC-редактора.');
+            return;
+        }
+
+        const u = doc.getElementById(targetId);
+
+        if (!u || !/^tag_856_subfield_u_\d+_\d+$/.test(u.id)) {
+            alert('Не знайдено цільове підполе 856$u.');
+            return;
+        }
+
+        const l = findMatching856l(doc, targetId);
+        if (!l) {
+            alert('Не вдалося однозначно визначити 856$l того самого поля. Дані не змінено.');
+            return;
+        }
+
+        if (u.disabled || u.readOnly || l.readOnly) {
+            alert('Одне з підполів 856 недоступне для редагування.');
+            return;
+        }
+
+        const url =
+            opac + '/download-file.pl?id=' + encodeURIComponent(hash) + '&biblionumber=' + encodeURIComponent(biblio);
+
+
+        // Записуємо значення тільки після всіх перевірок.
+        u.value = url;
+        l.value = rights;
+
+        const EventClass = doc.defaultView.Event;
+
+        [u, l].forEach(function(element) {
+            element.dispatchEvent(
+                new EventClass('input', { bubbles: true })
+            );
+            element.dispatchEvent(
+                new EventClass('change', { bubbles: true })
+            );
+        });
+
+        window.close();
+    });
+});
+
+
+
+
+}());
+</script>

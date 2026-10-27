@@ -3,16 +3,16 @@
 use Modern::Perl;
 use FindBin qw($Bin);
 
-# $Bin = .../plugins/Koha/Plugin/Libteh/DownloadFile
+# $Bin = .../plugins/Koha/Plugin/LibTeh/DownloadFile
 # Add the instance plugin root (.../plugins) to @INC.
 use lib "$Bin/../../../..";
 
 use CGI;
-use Koha::Plugin::Libteh::DownloadFile;
+use Koha::Plugin::LibTeh::DownloadFile;
 
 my $cgi = CGI->new;
 
-my $plugin = Koha::Plugin::Libteh::DownloadFile->new({
+my $plugin = Koha::Plugin::LibTeh::DownloadFile->new({
     cgi => $cgi,
 });
 
